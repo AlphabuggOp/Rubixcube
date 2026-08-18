@@ -7,7 +7,7 @@ function assert(cond, msg) {
 }
 
 function testIdentities() {
-  const faces = ['U', 'R', 'F', 'D', 'L', 'B'];
+  const faces = ['U', 'R', 'F', 'D', 'L', 'B', 'M', 'E', 'S'];
   for (const f of faces) {
     const c = new Cube().apply([f, f, f, f]);
     assert(c.isSolved(), `${f}4 should be identity`);

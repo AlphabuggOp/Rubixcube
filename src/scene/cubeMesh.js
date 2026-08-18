@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { COLOR_META, FACE_AXIS, FACE_NORMAL } from '../cube/constants.js';
-import { parseMove } from '../cube/engine.js';
+import { mapCoords, parseMove } from '../cube/engine.js';
 
 const STEP = 1.05;
 const CORE = 0.96;
@@ -47,6 +47,36 @@ const AXIS_VEC = {
   y: new THREE.Vector3(0, 1, 0),
   z: new THREE.Vector3(0, 0, 1),
 };
+
+function snapVec(v) {
+  const ax = Math.abs(v.x);
+  const ay = Math.abs(v.y);
+  const az = Math.abs(v.z);
+  const out = new THREE.Vector3();
+  if (ax >= ay && ax >= az) out.set(Math.sign(v.x) || 1, 0, 0);
+  else if (ay >= az) out.set(0, Math.sign(v.y) || 1, 0);
+  else out.set(0, 0, Math.sign(v.z) || 1);
+  return out;
+}
+
+function snapQuaternion(q) {
+  const m = new THREE.Matrix4().makeRotationFromQuaternion(q);
+  const x = new THREE.Vector3();
+  const y = new THREE.Vector3();
+  const z = new THREE.Vector3();
+  m.extractBasis(x, y, z);
+  const xs = snapVec(x);
+  let ys = snapVec(y);
+  if (Math.abs(xs.dot(ys)) > 0.5) {
+    ys = new THREE.Vector3().crossVectors(snapVec(z), xs);
+    if (ys.lengthSq() < 0.5) ys = snapVec(new THREE.Vector3().crossVectors(xs, new THREE.Vector3(0, 1, 0)));
+    ys.normalize();
+    ys = snapVec(ys);
+  }
+  const zs = new THREE.Vector3().crossVectors(xs, ys).normalize();
+  m.makeBasis(xs, ys, zs);
+  q.setFromRotationMatrix(m);
+}
 
 export function createCubeRig() {
   const root = new THREE.Group();
@@ -110,7 +140,7 @@ export function createCubeRig() {
             layout.pos[2] + outward[2] * 0.012,
           );
           sticker.rotation.set(...layout.rot);
-          sticker.userData = { face, x, y, z, cubie: group };
+          sticker.userData = { face, cubie: group };
           sticker.castShadow = true;
           group.add(sticker);
           stickers[face] = mat;
@@ -118,7 +148,16 @@ export function createCubeRig() {
         }
 
         root.add(group);
-        cubies.push({ group, x, y, z, stickers });
+        cubies.push({
+          group,
+          x,
+          y,
+          z,
+          homeX: x,
+          homeY: y,
+          homeZ: z,
+          stickers,
+        });
       }
     }
   }
@@ -139,6 +178,16 @@ export function createCubeRig() {
 export function applyFacelets(rig, facelets) {
   const str = facelets || '';
   for (const cubie of rig.cubies) {
+    cubie.x = cubie.homeX;
+    cubie.y = cubie.homeY;
+    cubie.z = cubie.homeZ;
+    if (cubie.group.parent !== rig.root) rig.root.attach(cubie.group);
+    cubie.group.position.set(cubie.x * STEP, cubie.y * STEP, cubie.z * STEP);
+    cubie.group.rotation.set(0, 0, 0);
+    cubie.group.quaternion.identity();
+    cubie.group.userData.x = cubie.x;
+    cubie.group.userData.y = cubie.y;
+    cubie.group.userData.z = cubie.z;
     for (const face of Object.keys(cubie.stickers)) {
       const idx = faceletIndex(face, cubie.x, cubie.y, cubie.z);
       const base = { U: 0, R: 9, F: 18, D: 27, L: 36, B: 45 }[face];
@@ -147,6 +196,8 @@ export function applyFacelets(rig, facelets) {
       cubie.stickers[face].emissive.set(ch && ch !== '?' ? '#000000' : '#050506');
     }
   }
+  rig.pivot.rotation.set(0, 0, 0);
+  rig.pivot.quaternion.identity();
 }
 
 function layerCubies(rig, face) {
@@ -154,33 +205,45 @@ function layerCubies(rig, face) {
   return rig.cubies.filter((c) => c[axis] === sign);
 }
 
-function resetPivots(rig) {
+function detachAll(rig) {
   for (const cubie of rig.cubies) {
     if (cubie.group.parent !== rig.root) {
       rig.root.attach(cubie.group);
     }
-    cubie.group.position.set(cubie.x * STEP, cubie.y * STEP, cubie.z * STEP);
-    cubie.group.rotation.set(0, 0, 0);
-    cubie.group.quaternion.identity();
   }
   rig.pivot.rotation.set(0, 0, 0);
   rig.pivot.quaternion.identity();
 }
 
+function settleMove(rig, move) {
+  const { face, times } = parseMove(move);
+  detachAll(rig);
+  for (const cubie of layerCubies(rig, face)) {
+    const next = mapCoords(cubie.x, cubie.y, cubie.z, face, times);
+    cubie.x = next.x;
+    cubie.y = next.y;
+    cubie.z = next.z;
+    cubie.group.userData.x = cubie.x;
+    cubie.group.userData.y = cubie.y;
+    cubie.group.userData.z = cubie.z;
+    snapQuaternion(cubie.group.quaternion);
+    cubie.group.position.set(cubie.x * STEP, cubie.y * STEP, cubie.z * STEP);
+  }
+}
+
 export function beginMove(rig, move, duration = 0.22) {
   const { face, times } = parseMove(move);
-  resetPivots(rig);
+  detachAll(rig);
   const layer = layerCubies(rig, face);
   for (const cubie of layer) {
     rig.pivot.attach(cubie.group);
   }
   const signed = times === 3 ? -1 : times === 2 ? 2 : 1;
-  const { axis, sign } = FACE_AXIS[face];
-  // +faces CW is negative right-hand; -faces CW is positive right-hand
-  const rh = sign === 1 ? -signed : signed;
+  const spec = FACE_AXIS[face];
+  const rh = (spec.cwRh ?? (spec.sign === 1 ? -1 : 1)) * signed;
   rig.anim = {
     move,
-    axis,
+    axis: spec.axis,
     target: rh * (Math.PI / 2),
     t: 0,
     duration: times === 2 ? duration * 1.15 : duration,
@@ -198,7 +261,7 @@ export function tickRig(rig, dt) {
   if (u >= 1) {
     const move = rig.anim.move;
     rig.anim = null;
-    resetPivots(rig);
+    settleMove(rig, move);
     return move;
   }
   return null;
@@ -230,22 +293,27 @@ export function dragToMove(normal, drag, cubiePos) {
   const raw = new THREE.Vector3().crossVectors(n, d);
   const snapped = snapAxis(raw);
   const layerSign = Math.round(cubiePos[snapped.axis] / STEP);
-  if (layerSign === 0) return null;
   const face =
-    snapped.axis === 'x'
-      ? layerSign === 1
-        ? 'R'
-        : 'L'
-      : snapped.axis === 'y'
+    layerSign === 0
+      ? snapped.axis === 'x'
+        ? 'M'
+        : snapped.axis === 'y'
+          ? 'E'
+          : 'S'
+      : snapped.axis === 'x'
         ? layerSign === 1
-          ? 'U'
-          : 'D'
-        : layerSign === 1
-          ? 'F'
-          : 'B';
+          ? 'R'
+          : 'L'
+        : snapped.axis === 'y'
+          ? layerSign === 1
+            ? 'U'
+            : 'D'
+          : layerSign === 1
+            ? 'F'
+            : 'B';
   const rhPositive = raw.dot(AXIS_VEC[snapped.axis]) > 0;
-  const plusFace = layerSign === 1;
-  const cw = plusFace ? !rhPositive : rhPositive;
+  const spec = FACE_AXIS[face];
+  const cw = spec.cwRh < 0 ? !rhPositive : rhPositive;
   return cw ? face : `${face}'`;
 }
 

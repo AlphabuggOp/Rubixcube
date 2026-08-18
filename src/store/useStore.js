@@ -72,6 +72,7 @@ export const useStore = create((set, get) => ({
   speedReady: false,
   speedWarming: false,
   solving: false,
+  visualEpoch: 0,
 
 
 
@@ -175,11 +176,14 @@ export const useStore = create((set, get) => ({
       lastMove: history[history.length - 1] || null,
       moveCount: Math.max(0, s.moveCount - 1),
       celebrate: false,
+      visualEpoch: s.visualEpoch + 1,
     });
   },
 
+  bumpVisual: () => set((s) => ({ visualEpoch: s.visualEpoch + 1 })),
+
   reset: () => {
-    set({
+    set((s) => ({
       facelets: SOLVED_FACELETS,
       history: [],
       queue: [],
@@ -190,7 +194,8 @@ export const useStore = create((set, get) => ({
       timerOn: false,
       celebrate: false,
       solutionPlaying: false,
-    });
+      visualEpoch: s.visualEpoch + 1,
+    }));
   },
 
   scramble: () => {
@@ -208,6 +213,7 @@ export const useStore = create((set, get) => ({
       solution: null,
       solutionPlaying: false,
       ignoreMoves: true,
+      visualEpoch: get().visualEpoch + 1,
     });
     get().enqueue(moves, { fast: true });
   },
@@ -250,6 +256,7 @@ export const useStore = create((set, get) => ({
       inspectFace: first,
       solution: null,
       solutionPlaying: false,
+      visualEpoch: get().visualEpoch + 1,
     });
   },
 
@@ -296,7 +303,14 @@ export const useStore = create((set, get) => ({
         get().setToast({ tone: 'warn', text: legal.reason });
         return;
       }
-      set({ painted, facelets, solverStage: 'solution', cameraPreset: 'play', inspectFace: null });
+      set((st) => ({
+        painted,
+        facelets,
+        solverStage: 'solution',
+        cameraPreset: 'play',
+        inspectFace: null,
+        visualEpoch: st.visualEpoch + 1,
+      }));
       get().buildSolution(facelets);
       return;
     }
@@ -363,7 +377,7 @@ export const useStore = create((set, get) => ({
         solution = solveBeginner(facelets);
       }
       solution.moves = compactMoves(solution.moves);
-      set({
+      set((s) => ({
         solution,
         solutionOrigin: facelets,
         solutionCursor: 0,
@@ -374,7 +388,8 @@ export const useStore = create((set, get) => ({
         timerOn: false,
         solving: false,
         mode: 'solver',
-      });
+        visualEpoch: s.visualEpoch + 1,
+      }));
     } catch (err) {
       set({ solving: false });
       get().setToast({ tone: 'warn', text: err.message || 'Could not solve that cube.' });
@@ -426,6 +441,7 @@ export const useStore = create((set, get) => ({
       solutionPlaying: false,
       history: moves.slice(0, next),
       lastMove: moves[next - 1] || null,
+      visualEpoch: s.visualEpoch + 1,
     });
   },
 
@@ -441,6 +457,7 @@ export const useStore = create((set, get) => ({
       queue: [],
       history: moves.slice(0, offset),
       lastMove: moves[offset - 1] || null,
+      visualEpoch: s.visualEpoch + 1,
     });
   },
 

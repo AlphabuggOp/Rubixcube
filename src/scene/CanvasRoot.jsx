@@ -2,7 +2,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { CAMERA_PRESETS } from '../cube/constants.js';
+import { CAMERA_PRESETS, FACE_NORMAL } from '../cube/constants.js';
 import {
   selectDisplayFacelets,
   useStore,
@@ -65,6 +65,7 @@ function RubiksView() {
   const group = useRef();
   const rigRef = useRef(null);
   const facelets = useStore(selectDisplayFacelets);
+  const visualEpoch = useStore((s) => s.visualEpoch);
   const inspectFace = useStore((s) => s.inspectFace);
   const shiftQueue = useStore((s) => s.shiftQueue);
   const finishMove = useStore((s) => s.finishMove);
@@ -92,7 +93,13 @@ function RubiksView() {
     const rig = rigRef.current;
     if (!rig || isBusy(rig)) return;
     applyFacelets(rig, facelets);
-  }, [facelets]);
+  }, [visualEpoch]);
+
+  useEffect(() => {
+    const rig = rigRef.current;
+    if (!rig || isBusy(rig) || solverStage !== 'paint') return;
+    applyFacelets(rig, facelets);
+  }, [facelets, solverStage]);
 
   useEffect(() => {
     const rig = rigRef.current;
@@ -119,7 +126,6 @@ function RubiksView() {
     const done = tickRig(rig, capped);
     if (done) {
       finishMove(done);
-      applyFacelets(rig, useStore.getState().facelets);
     }
     if (!isBusy(rig) && useStore.getState().queue.length) {
       const item = shiftQueue();
@@ -141,9 +147,11 @@ function RubiksView() {
       const hit = pickSticker(rig, raycaster);
       if (!hit) return;
       if (controls.current) controls.current.enabled = false;
+      const normal = new THREE.Vector3();
+      hit.object.getWorldDirection(normal);
       drag.current = {
         start: new THREE.Vector2(event.clientX, event.clientY),
-        normal: hit.face.normal.clone().transformDirection(hit.object.matrixWorld),
+        normal,
         pos: hit.object.userData.cubie.position.clone(),
         committed: false,
       };

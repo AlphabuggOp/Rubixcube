@@ -18,6 +18,10 @@ const ROT = {
   L: { pred: (c) => c.x === -1, map: ([x, y, z]) => [x, -z, y] },
   F: { pred: (c) => c.z === 1, map: ([x, y, z]) => [y, -x, z] },
   B: { pred: (c) => c.z === -1, map: ([x, y, z]) => [-y, x, z] },
+  // Slices: M follows L, E follows D, S follows F
+  M: { pred: (c) => c.x === 0, map: ([x, y, z]) => [x, -z, y] },
+  E: { pred: (c) => c.y === 0, map: ([x, y, z]) => [z, y, -x] },
+  S: { pred: (c) => c.z === 0, map: ([x, y, z]) => [y, -x, z] },
 };
 
 const FACE_DIR = {
@@ -447,6 +451,15 @@ export function cornerInSlot(cube, slotName) {
   const piece = cube.corner(...colors);
   const slot = SLOT_POS[slotName];
   return piece && slot && samePos(piece, slot);
+}
+
+export function mapCoords(x, y, z, face, times) {
+  const rot = ROT[face];
+  if (!rot) throw new Error(`Unknown move ${face}`);
+  const n = ((times % 4) + 4) % 4;
+  let p = [x, y, z];
+  for (let i = 0; i < n; i += 1) p = rot.map(p);
+  return { x: p[0], y: p[1], z: p[2] };
 }
 
 export { FACE_DIR, ROT };

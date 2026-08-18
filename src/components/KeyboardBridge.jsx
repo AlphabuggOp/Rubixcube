@@ -9,6 +9,9 @@ const FACE_KEYS = {
   d: 'D',
   l: 'L',
   b: 'B',
+  m: 'M',
+  e: 'E',
+  s: 'S',
 };
 
 export default function KeyboardBridge() {

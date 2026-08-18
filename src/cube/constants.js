@@ -1,12 +1,15 @@
 export const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'];
 
 export const FACE_AXIS = {
-  U: { axis: 'y', sign: 1 },
-  D: { axis: 'y', sign: -1 },
-  R: { axis: 'x', sign: 1 },
-  L: { axis: 'x', sign: -1 },
-  F: { axis: 'z', sign: 1 },
-  B: { axis: 'z', sign: -1 },
+  U: { axis: 'y', sign: 1, cwRh: -1 },
+  D: { axis: 'y', sign: -1, cwRh: 1 },
+  R: { axis: 'x', sign: 1, cwRh: -1 },
+  L: { axis: 'x', sign: -1, cwRh: 1 },
+  F: { axis: 'z', sign: 1, cwRh: -1 },
+  B: { axis: 'z', sign: -1, cwRh: 1 },
+  M: { axis: 'x', sign: 0, cwRh: 1 },
+  E: { axis: 'y', sign: 0, cwRh: 1 },
+  S: { axis: 'z', sign: 0, cwRh: -1 },
 };
 
 export const FACE_NORMAL = {
@@ -81,6 +84,12 @@ export const MOVES = [
   'D', "D'", 'D2',
   'L', "L'", 'L2',
   'B', "B'", 'B2',
+];
+
+export const SLICE_MOVES = [
+  'M', "M'", 'M2',
+  'E', "E'", 'E2',
+  'S', "S'", 'S2',
 ];
 
 export const BASIC_FACES = ['U', 'R', 'F', 'D', 'L', 'B'];

@@ -21,6 +21,7 @@ export function HelpModal() {
         </p>
         <ul>
           <li><strong>U R F D L B</strong> — turn that face clockwise</li>
+          <li><strong>M E S</strong> — middle slices (or drag a center sticker)</li>
           <li><strong>Shift + key</strong> — prime (counter-clockwise)</li>
           <li><strong>2 after a face</strong> — a half turn, or use the pad</li>
           <li><strong>Z</strong> — undo · <strong>Space</strong> — scramble</li>
