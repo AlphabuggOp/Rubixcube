@@ -24,6 +24,18 @@ npm test         # cube engine + 30 random solves
 npm run build
 ```
 
+## Deploy on Vercel
+
+`vercel.json` is set up for this Vite app (build `npm run build`, output `dist`, SPA fallback).
+
+1. Import the GitHub repo in [Vercel](https://vercel.com/new) or run `npx vercel`.
+2. Keep the detected **Vite** framework, build command, and `dist` output.
+3. Deploy.
+
+```bash
+npx vercel
+```
+
 ## Keys
 
 `U R F D L B` clockwise · `Shift` prime · `Z` undo · `Space` scramble · `?` help
